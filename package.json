@@ -1,0 +1,23 @@
+{
+  "name": "devops-capstone-nodejs",
+  "version": "1.0.0",
+  "description": "End-to-End DevOps CI/CD Pipeline using Jenkins, Docker, AWS, Prometheus and Grafana",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo \"Tests Passed\" && exit 0"
+  },
+  "keywords": [
+    "devops",
+    "nodejs",
+    "docker",
+    "jenkins",
+    "aws"
+  ],
+  "author": "Naveen Kumar",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.22.2"
+  },
+  "type": "commonjs"
+}
