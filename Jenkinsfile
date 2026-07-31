@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "naveenkumar21032006/devops-capstone-nodejs"
-        APP_SERVER = "43.205.124.30"
+        APP_SERVER = "13.232.222.98"
         APP_USER = "ubuntu"
         CONTAINER_NAME = "node-app"
     }
