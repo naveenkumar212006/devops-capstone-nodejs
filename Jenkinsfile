@@ -13,7 +13,8 @@ pipeline {
         stage('Checkout Source') {
             steps {
                 git branch: 'main',
-                url: 'https://github.com/naveenkumar212006/devops-capstone-nodejs.git'
+                    credentialsId: 'jenkins-capstone',
+                    url: 'https://github.com/naveenkumar212006/devops-capstone-nodejs.git'
             }
         }
 
@@ -32,23 +33,24 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh """
-                docker build -t ${DOCKER_IMAGE}:latest .
+                    docker build -t ${DOCKER_IMAGE}:latest .
                 """
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub',
-                    usernameVariable: 'DOCKER_USERNAME',
-                    passwordVariable: 'DOCKER_PASSWORD'
-                )]) {
-
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
                     sh """
-                    echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin
-                    docker push ${DOCKER_IMAGE}:latest
-                    docker logout
+                        echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin
+                        docker push ${DOCKER_IMAGE}:latest
+                        docker logout
                     """
                 }
             }
@@ -56,24 +58,20 @@ pipeline {
 
         stage('Deploy to Application Server') {
             steps {
-                sshagent(['ec2-server']) {
-
+                sshagent(credentials: ['ec2-server']) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
+                        ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
+                            docker pull ${DOCKER_IMAGE}:latest
 
-                    docker pull ${DOCKER_IMAGE}:latest
+                            docker stop ${CONTAINER_NAME} || true
+                            docker rm ${CONTAINER_NAME} || true
 
-                    docker stop ${CONTAINER_NAME} || true
-
-                    docker rm ${CONTAINER_NAME} || true
-
-                    docker run -d \
-                    --name ${CONTAINER_NAME} \
-                    --restart unless-stopped \
-                    -p 3000:3000 \
-                    ${DOCKER_IMAGE}:latest
-
-                    '
+                            docker run -d \
+                                --name ${CONTAINER_NAME} \
+                                --restart unless-stopped \
+                                -p 3000:3000 \
+                                ${DOCKER_IMAGE}:latest
+                        '
                     """
                 }
             }
@@ -82,8 +80,15 @@ pipeline {
         stage('Deployment Verification') {
             steps {
                 sh """
-                sleep 10
-                curl http://${APP_SERVER}:3000/health
+                    echo "Waiting for application to start..."
+                    sleep 10
+
+                    curl --connect-timeout 5 \
+                         --max-time 10 \
+                         --retry 5 \
+                         --retry-delay 5 \
+                         --fail \
+                         http://${APP_SERVER}:3000/health
                 """
             }
         }
@@ -92,18 +97,24 @@ pipeline {
     post {
 
         success {
-            echo "=================================="
-            echo "Deployment Successful"
+            echo "======================================="
+            echo "Deployment Successful!"
             echo "Application URL:"
             echo "http://${APP_SERVER}:3000"
-            echo "=================================="
+            echo "Health Check:"
+            echo "http://${APP_SERVER}:3000/health"
+            echo "======================================="
         }
 
         failure {
-            echo "=================================="
-            echo "Pipeline Failed"
-            echo "Check Console Output"
-            echo "=================================="
+            echo "======================================="
+            echo "Pipeline Failed!"
+            echo "Check Jenkins Console Output."
+            echo "======================================="
+        }
+
+        always {
+            cleanWs()
         }
     }
 }
